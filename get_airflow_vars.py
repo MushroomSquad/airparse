@@ -36,6 +36,28 @@ class AirflowData:
     secrets: list[dict] = field(default_factory=list)
 
 
+def extract_json(text: str) -> dict | list:
+    """Extract first valid JSON object/array from text mixed with logs."""
+    # Find first { or [
+    start_obj = text.find("{")
+    start_arr = text.find("[")
+    
+    if start_obj == -1 and start_arr == -1:
+        raise ValueError("No JSON found in output")
+    
+    if start_obj == -1:
+        start = start_arr
+    elif start_arr == -1:
+        start = start_obj
+    else:
+        start = min(start_obj, start_arr)
+    
+    # Use raw_decode to parse only the first JSON structure
+    decoder = json.JSONDecoder()
+    obj, _ = decoder.raw_decode(text[start:])
+    return obj
+
+
 # ─────────────────────────── API MODE ────────────────────────────────────────
 
 
@@ -225,7 +247,7 @@ def fetch_local(airflow_home: str | None = None) -> AirflowData:
     print("[LOCAL] Fetching connections...")
     try:
         out = run_airflow_cli(["connections", "export", "/dev/stdout", "--file-format", "json"], env_extra)
-        conns = json.loads(out)
+        conns = extract_json(out)
         if isinstance(conns, list):
             items = conns
         else:
@@ -247,7 +269,7 @@ def fetch_local(airflow_home: str | None = None) -> AirflowData:
     print("[LOCAL] Fetching variables...")
     try:
         out = run_airflow_cli(["variables", "export", "/dev/stdout"], env_extra)
-        variables = json.loads(out)
+        variables = extract_json(out)
         for k, v in variables.items():
             data.variables.append({"key": k, "value": str(v), "description": ""})
     except Exception as e:
@@ -298,7 +320,7 @@ def fetch_docker(container: str, airflow_home: str = "/opt/airflow") -> AirflowD
     print(f"[DOCKER] Fetching connections from container '{container}'...")
     try:
         out = exec_in_container("airflow connections export /dev/stdout --file-format json 2>/dev/null")
-        conns = json.loads(out)
+        conns = extract_json(out)
         if isinstance(conns, list):
             items = conns
         else:
@@ -320,7 +342,7 @@ def fetch_docker(container: str, airflow_home: str = "/opt/airflow") -> AirflowD
     print(f"[DOCKER] Fetching variables from container '{container}'...")
     try:
         out = exec_in_container("airflow variables export /dev/stdout 2>/dev/null")
-        variables = json.loads(out)
+        variables = extract_json(out)
         for k, v in variables.items():
             data.variables.append({"key": k, "value": str(v), "description": ""})
     except Exception as e:
