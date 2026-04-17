@@ -248,21 +248,31 @@ def fetch_local(airflow_home: str | None = None) -> AirflowData:
     try:
         out = run_airflow_cli(["connections", "export", "/dev/stdout", "--file-format", "json"], env_extra)
         conns = extract_json(out)
-        if isinstance(conns, list):
-            items = conns
+        # CLI export returns {conn_id: {data}} dict, not a list
+        if isinstance(conns, dict):
+            for conn_id, c in conns.items():
+                data.connections.append({
+                    "conn_id":   conn_id,
+                    "conn_type": c.get("conn_type", ""),
+                    "host":      c.get("host", ""),
+                    "port":      c.get("port", ""),
+                    "schema":    c.get("schema", ""),
+                    "login":     c.get("login", ""),
+                    "password":  c.get("password", ""),
+                    "extra":     json.dumps(c.get("extra", "")) if c.get("extra") else "",
+                })
         else:
-            items = list(conns.values())
-        for c in items:
-            data.connections.append({
-                "conn_id":   c.get("conn_id", ""),
-                "conn_type": c.get("conn_type", ""),
-                "host":      c.get("host", ""),
-                "port":      c.get("port", ""),
-                "schema":    c.get("schema", ""),
-                "login":     c.get("login", ""),
-                "password":  c.get("password", ""),
-                "extra":     json.dumps(c.get("extra", "")) if c.get("extra") else "",
-            })
+            for c in conns:
+                data.connections.append({
+                    "conn_id":   c.get("conn_id", ""),
+                    "conn_type": c.get("conn_type", ""),
+                    "host":      c.get("host", ""),
+                    "port":      c.get("port", ""),
+                    "schema":    c.get("schema", ""),
+                    "login":     c.get("login", ""),
+                    "password":  c.get("password", ""),
+                    "extra":     json.dumps(c.get("extra", "")) if c.get("extra") else "",
+                })
     except Exception as e:
         print(f"[LOCAL] connections failed: {e}")
 
@@ -321,21 +331,31 @@ def fetch_docker(container: str, airflow_home: str = "/opt/airflow") -> AirflowD
     try:
         out = exec_in_container("airflow connections export /dev/stdout --file-format json 2>/dev/null")
         conns = extract_json(out)
-        if isinstance(conns, list):
-            items = conns
+        # CLI export returns {conn_id: {data}} dict, not a list
+        if isinstance(conns, dict):
+            for conn_id, c in conns.items():
+                data.connections.append({
+                    "conn_id":   conn_id,
+                    "conn_type": c.get("conn_type", ""),
+                    "host":      c.get("host", ""),
+                    "port":      c.get("port", ""),
+                    "schema":    c.get("schema", ""),
+                    "login":     c.get("login", ""),
+                    "password":  c.get("password", ""),
+                    "extra":     json.dumps(c.get("extra", "")) if c.get("extra") else "",
+                })
         else:
-            items = list(conns.values())
-        for c in items:
-            data.connections.append({
-                "conn_id":   c.get("conn_id", ""),
-                "conn_type": c.get("conn_type", ""),
-                "host":      c.get("host", ""),
-                "port":      c.get("port", ""),
-                "schema":    c.get("schema", ""),
-                "login":     c.get("login", ""),
-                "password":  c.get("password", ""),
-                "extra":     json.dumps(c.get("extra", "")) if c.get("extra") else "",
-            })
+            for c in conns:
+                data.connections.append({
+                    "conn_id":   c.get("conn_id", ""),
+                    "conn_type": c.get("conn_type", ""),
+                    "host":      c.get("host", ""),
+                    "port":      c.get("port", ""),
+                    "schema":    c.get("schema", ""),
+                    "login":     c.get("login", ""),
+                    "password":  c.get("password", ""),
+                    "extra":     json.dumps(c.get("extra", "")) if c.get("extra") else "",
+                })
     except Exception as e:
         print(f"[DOCKER] connections failed: {e}")
 
